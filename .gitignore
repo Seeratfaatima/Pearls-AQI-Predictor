@@ -1,0 +1,7 @@
+models/
+data/
+*.joblib
+*.parquet
+.DS_Store
+__pycache__/
+
