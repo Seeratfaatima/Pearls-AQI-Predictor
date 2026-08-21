@@ -8,3 +8,4 @@ streamlit>=1.25.0
 plotly>=5.15.0
 shap>=0.42.0
 hopsworks>=3.4.0
+deltalake>=0.10.0

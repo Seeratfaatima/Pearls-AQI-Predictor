@@ -37,14 +37,14 @@ def run_feature_pipeline(start_date="2024-07-01", end_date=None):
             fs = project.get_feature_store()
             fg = fs.get_or_create_feature_group(
                 name="aqi_features",
-                version=3,
+                version=4,
                 description="Historical AQI features with engineered rolling variables",
                 primary_key=["time"],
                 event_time="time",
                 online_enabled=False
             )
             fg.insert(clean_df, write_options={"wait_for_job": False})
-            print("[Feature Pipeline] Successfully inserted features into Hopsworks Feature Group version 3!")
+            print("[Feature Pipeline] Successfully inserted features into Hopsworks Feature Group version 4!")
         except Exception as e:
             print(f"[Feature Pipeline] Warning: Could not push to Hopsworks Feature Store: {e}")
 

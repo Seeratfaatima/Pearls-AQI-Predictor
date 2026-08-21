@@ -25,7 +25,7 @@ def load_data():
     if project:
         try:
             fs = project.get_feature_store()
-            fg = fs.get_feature_group(name="aqi_features", version=3)
+            fg = fs.get_feature_group(name="aqi_features", version=4)
             df = fg.read()
             df = df.sort_values("time").reset_index(drop=True)
             print(f"[Training Pipeline] Successfully read {len(df)} rows from Hopsworks Feature Store.")

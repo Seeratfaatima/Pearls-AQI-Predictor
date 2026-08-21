@@ -80,7 +80,7 @@ def fetch_open_meteo_data(start_date="2024-07-01", end_date=None, lat=LATITUDE, 
 def engineer_features(df, is_training=True):
     """Computes time-based, rolling, and lag features for AQI model inputs."""
     aqi_df = df.copy()
-    aqi_df["time"] = pd.to_datetime(aqi_df["time"])
+    aqi_df["time"] = pd.to_datetime(aqi_df["time"]).dt.floor("s")
     
     # Sort chronologically
     aqi_df = aqi_df.sort_values("time").reset_index(drop=True)
@@ -121,13 +121,16 @@ def engineer_features(df, is_training=True):
 
     return aqi_df
 
+import os
+
 def get_hopsworks_project():
     """Attempts Hopsworks login and returns project instance."""
     try:
         import hopsworks
+        api_key = os.environ.get("HOPSWORKS_API_KEY", HOPSWORKS_API_KEY)
         project = hopsworks.login(
             project=HOPSWORKS_PROJECT_NAME,
-            api_key_value=HOPSWORKS_API_KEY
+            api_key_value=api_key
         )
         return project
     except Exception as e:
