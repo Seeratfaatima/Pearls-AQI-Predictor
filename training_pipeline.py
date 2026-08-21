@@ -20,23 +20,42 @@ MODELS_DIR = os.path.join(BASE_DIR, "models")
 os.makedirs(MODELS_DIR, exist_ok=True)
 
 def load_data():
-    """Reads feature data from Hopsworks or local fallback parquet."""
+    """Reads feature data from Hopsworks Feature View or local fallback parquet."""
     project = get_hopsworks_project()
     if project:
         try:
             fs = project.get_feature_store()
-            fg = fs.get_feature_group(name="aqi_features", version=4)
-            df = fg.read()
+            fg = fs.get_feature_group(name="aqi_features", version=3)
+            query = fg.select_all()
+            try:
+                fv = fs.get_feature_view(name="aqi_feature_view", version=2)
+            except Exception:
+                fv = fs.create_feature_view(
+                    name="aqi_feature_view",
+                    version=2,
+                    description="Feature View for AQI 3-Day Forecast models",
+                    query=query
+                )
+            td_version = 1
+            try:
+                fv.get_train_test_split(training_dataset_version=td_version)
+            except Exception:
+                try:
+                    fv.train_test_split(test_size=0.2, description="AQI training dataset split")
+                except Exception as ex:
+                    print(f"[Training Pipeline] Note: training dataset split handling: {ex}")
+            
+            df = fv.get_batch_data()
             df = df.sort_values("time").reset_index(drop=True)
-            print(f"[Training Pipeline] Successfully read {len(df)} rows from Hopsworks Feature Store.")
-            return df
+            print(f"[Training Pipeline] Successfully read {len(df)} rows from Hopsworks Feature View ('aqi_feature_view' v2).")
+            return df, fv, td_version
         except Exception as e:
             print(f"[Training Pipeline] Hopsworks read fallback: {e}")
 
     if os.path.exists(DATA_PATH):
         df = pd.read_parquet(DATA_PATH)
         print(f"[Training Pipeline] Loaded {len(df)} rows from local snapshot {DATA_PATH}.")
-        return df
+        return df, None, None
     
     raise FileNotFoundError("No feature data found in Hopsworks or local data directory. Run feature_pipeline.py first!")
 
@@ -45,7 +64,7 @@ def run_training_pipeline():
     print("[Training Pipeline] Starting model training and evaluation...")
     print("=" * 60)
 
-    df = load_data()
+    df, fv, td_version = load_data()
 
     # Ensure rolling features and multi-day targets are present
     if "aqi_day1" not in df.columns:
@@ -66,7 +85,7 @@ def run_training_pipeline():
         y = clean_df[target_col]
         X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=42, shuffle=True)
 
-        model = RandomForestRegressor(n_estimators=200, random_state=42, n_jobs=-1)
+        model = RandomForestRegressor(n_estimators=100, max_depth=15, random_state=42, n_jobs=-1)
         model.fit(X_tr, y_tr)
 
         preds = model.predict(X_te)
@@ -79,24 +98,29 @@ def run_training_pipeline():
         metrics_summary[f"mae_{day_name.lower().replace(' ', '')}"] = round(mae, 2)
         metrics_summary[f"r2_{day_name.lower().replace(' ', '')}"] = round(r2, 4)
 
-        # Save model artifact
+        # Save compressed model artifact
         model_path = os.path.join(MODELS_DIR, f"model_{day_name.lower().replace(' ', '')}.joblib")
-        joblib.dump(model, model_path)
+        joblib.dump(model, model_path, compress=3)
         trained_models[day_name] = model
 
-    joblib.dump(feature_cols, os.path.join(MODELS_DIR, "feature_cols.joblib"))
-    print(f"[Training Pipeline] Saved local model artifacts to {MODELS_DIR}/")
+    joblib.dump(feature_cols, os.path.join(MODELS_DIR, "feature_cols.joblib"), compress=3)
+    print(f"[Training Pipeline] Saved local compressed model artifacts to {MODELS_DIR}/")
 
     # Hopsworks Model Registry upload
     project = get_hopsworks_project()
     if project:
         try:
             mr = project.get_model_registry()
-            aqi_model = mr.python.create_model(
-                name="aqi_predictor_model",
-                metrics=metrics_summary,
-                description="Random Forest 3-Day AQI Forecaster"
-            )
+            create_kwargs = {
+                "name": "aqi_predictor_model",
+                "metrics": metrics_summary,
+                "description": "Random Forest 3-Day AQI Forecaster"
+            }
+            if fv is not None:
+                create_kwargs["feature_view"] = fv
+            if td_version is not None:
+                create_kwargs["training_dataset_version"] = td_version
+            aqi_model = mr.python.create_model(**create_kwargs)
             aqi_model.save(MODELS_DIR)
             print("[Training Pipeline] Successfully registered trained model bundle in Hopsworks Model Registry!")
         except Exception as e:

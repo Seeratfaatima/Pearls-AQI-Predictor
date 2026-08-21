@@ -304,7 +304,7 @@ with f_col1:
         <div class='metric-hero' style='color: #0f172a;'>{pred_d1:.1f} <span style='font-size: 1rem; color: #64748b; font-weight: 500;'>AQI</span></div>
         <div style='margin: 8px 0;'><span class='status-pill' style='background-color: {col1};'>{cat1}</span></div>
         <div style='font-size: 0.8rem; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 8px; margin-top: 8px;'>
-            Validation RMSE: <b>± 9.29</b> | Model Version: RF v3
+            Validation RMSE: <b>± 9.29</b> | Model Version: RF v4
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -320,7 +320,7 @@ with f_col2:
         <div class='metric-hero' style='color: #0f172a;'>{pred_d2:.1f} <span style='font-size: 1rem; color: #64748b; font-weight: 500;'>AQI</span></div>
         <div style='margin: 8px 0;'><span class='status-pill' style='background-color: {col2};'>{cat2}</span></div>
         <div style='font-size: 0.8rem; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 8px; margin-top: 8px;'>
-            Validation RMSE: <b>± 6.54</b> | Model Version: RF v3
+            Validation RMSE: <b>± 6.54</b> | Model Version: RF v4
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -336,7 +336,7 @@ with f_col3:
         <div class='metric-hero' style='color: #0f172a;'>{pred_d3:.1f} <span style='font-size: 1rem; color: #64748b; font-weight: 500;'>AQI</span></div>
         <div style='margin: 8px 0;'><span class='status-pill' style='background-color: {col3};'>{cat3}</span></div>
         <div style='font-size: 0.8rem; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 8px; margin-top: 8px;'>
-            Validation RMSE: <b>± 5.03</b> | Model Version: RF v3
+            Validation RMSE: <b>± 5.03</b> | Model Version: RF v4
         </div>
     </div>
     """, unsafe_allow_html=True)
