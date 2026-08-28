@@ -43,7 +43,7 @@ def run_feature_pipeline(start_date="2024-07-01", end_date=None):
                 event_time="time",
                 online_enabled=False
             )
-            fg.insert(clean_df, write_options={"wait_for_job": True})
+            fg.insert(clean_df, write_options={"wait_for_job": False})
             print("[Feature Pipeline] Successfully inserted features into Hopsworks Feature Group version 4!")
         except Exception as e:
             print(f"[Feature Pipeline] Warning: Could not push to Hopsworks Feature Store: {e}")

@@ -25,7 +25,7 @@ def load_data():
     if project:
         try:
             fs = project.get_feature_store()
-            fg = fs.get_feature_group(name="aqi_features", version=3)
+            fg = fs.get_feature_group(name="aqi_features", version=4)
             query = fg.select_all()
             try:
                 fv = fs.get_feature_view(name="aqi_feature_view", version=2)
@@ -57,7 +57,10 @@ def load_data():
         print(f"[Training Pipeline] Loaded {len(df)} rows from local snapshot {DATA_PATH}.")
         return df, None, None
     
-    raise FileNotFoundError("No feature data found in Hopsworks or local data directory. Run feature_pipeline.py first!")
+    print("[Training Pipeline] Local parquet dataset missing. Invoking feature pipeline to generate dataset...")
+    from feature_pipeline import run_feature_pipeline
+    df = run_feature_pipeline()
+    return df, None, None
 
 def run_training_pipeline():
     print("=" * 60)
