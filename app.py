@@ -201,7 +201,8 @@ with head_left:
 with head_right:
     st.markdown("<div style='text-align: right; padding-top: 10px;'>", unsafe_allow_html=True)
     st.markdown("📍 **Lahore, Pakistan**")
-    st.caption(f"Updated: {datetime.datetime.now().strftime('%H:%M PKT')}")
+    pkt_now = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=5)
+    st.caption(f"Updated: {pkt_now.strftime('%I:%M %p PKT')}")
     if st.button("🔄 Refresh Data", type="secondary"):
         st.cache_data.clear()
         st.rerun()
