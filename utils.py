@@ -56,8 +56,8 @@ def fetch_open_meteo_data(start_date="2024-07-01", end_date=None, lat=LATITUDE, 
     w_base = "https://api.open-meteo.com/v1/forecast" if is_recent else "https://archive-api.open-meteo.com/v1/archive"
     a_base = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
-    w_url = f"{w_base}?latitude={lat}&longitude={lon}&start_date={start_date}&end_date={end_date}&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m"
-    a_url = f"{a_base}?latitude={lat}&longitude={lon}&start_date={start_date}&end_date={end_date}&hourly=pm2_5,pm10,carbon_monoxide,nitrogen_dioxide,ozone"
+    w_url = f"{w_base}?latitude={lat}&longitude={lon}&start_date={start_date}&end_date={end_date}&hourly=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m&timezone=Asia%2FKarachi"
+    a_url = f"{a_base}?latitude={lat}&longitude={lon}&start_date={start_date}&end_date={end_date}&hourly=pm2_5,pm10,carbon_monoxide,nitrogen_dioxide,ozone&timezone=Asia%2FKarachi"
 
     w_res = requests.get(w_url).json()
     a_res = requests.get(a_url).json()
@@ -71,6 +71,7 @@ def fetch_open_meteo_data(start_date="2024-07-01", end_date=None, lat=LATITUDE, 
     merged = pd.merge(w_df, a_df, on="time").rename(columns={
         "temperature_2m": "temperature",
         "relative_humidity_2m": "humidity",
+        "surface_pressure": "pressure",
         "wind_speed_10m": "wind_speed",
         "carbon_monoxide": "co",
         "nitrogen_dioxide": "no2"

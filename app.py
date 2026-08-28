@@ -196,7 +196,15 @@ with st.spinner("Fetching latest satellite telemetry..."):
         st.error(f"Failed to fetch data: {e}")
         st.stop()
 
-latest_row = df.dropna(subset=feature_cols).iloc[-1:]
+valid_df = df.dropna(subset=feature_cols).copy()
+valid_df["dt_time"] = pd.to_datetime(valid_df["time"])
+now_local = pd.to_datetime(datetime.datetime.now())
+current_or_past = valid_df[valid_df["dt_time"] <= now_local]
+if not current_or_past.empty:
+    latest_row = current_or_past.iloc[-1:]
+else:
+    latest_row = valid_df.iloc[-1:]
+
 latest_time = latest_row["time"].values[0]
 current_aqi = int(latest_row["aqi"].values[0])
 current_cat, current_col = get_aqi_category(current_aqi)
@@ -264,17 +272,43 @@ with h_col2:
     </div>
     """, unsafe_allow_html=True)
 
-# SECTION 2: LIVE POLLUTANTS TILES
-st.markdown("##### Live Pollutant Telemetry")
-p_cols = st.columns(6)
+# SECTION 2: CURRENT ATMOSPHERIC & WEATHER CONDITIONS
+st.markdown("##### 🌤️ Current Atmospheric & Weather Conditions")
+w_cols = st.columns(4)
+
+temp_val = f"{latest_row['temperature'].values[0]:.1f} °C" if 'temperature' in latest_row.columns and not pd.isna(latest_row['temperature'].values[0]) else "N/A"
+hum_val = f"{latest_row['humidity'].values[0]:.0f} %" if 'humidity' in latest_row.columns and not pd.isna(latest_row['humidity'].values[0]) else "N/A"
+press_val = f"{latest_row['pressure'].values[0]:.1f} hPa" if 'pressure' in latest_row.columns and not pd.isna(latest_row['pressure'].values[0]) else "N/A"
+wind_val = f"{latest_row['wind_speed'].values[0]:.1f} km/h" if 'wind_speed' in latest_row.columns and not pd.isna(latest_row['wind_speed'].values[0]) else "N/A"
+
+weather_metrics = [
+    ("🌡️ Temperature", temp_val),
+    ("💧 Relative Humidity", hum_val),
+    ("⏲️ Surface Pressure", press_val),
+    ("💨 Wind Speed", wind_val)
+]
+
+for idx, (name, val) in enumerate(weather_metrics):
+    with w_cols[idx]:
+        st.markdown(f"""
+        <div class='mini-tile' style='background: #f0fdf4; border-color: #bbf7d0;'>
+            <div class='mini-tile-val' style='color: #15803d;'>{val}</div>
+            <div class='mini-tile-lbl'>{name}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+st.write("")
+
+# SECTION 3: LIVE POLLUTANTS TILES
+st.markdown("##### 🧪 Live Pollutant Telemetry")
+p_cols = st.columns(5)
 
 pollutants = [
     ("PM2.5", f"{latest_row['pm2_5'].values[0]:.1f} µg/m³"),
     ("PM10", f"{latest_row['pm10'].values[0]:.1f} µg/m³"),
     ("Ozone (O₃)", f"{latest_row['ozone'].values[0]:.1f} µg/m³"),
     ("NO₂", f"{latest_row['no2'].values[0]:.1f} µg/m³"),
-    ("CO", f"{latest_row['co'].values[0]:.0f} µg/m³"),
-    ("Wind Speed", f"{latest_row['wind_speed'].values[0]:.1f} km/h")
+    ("CO", f"{latest_row['co'].values[0]:.0f} µg/m³")
 ]
 
 for idx, (name, val) in enumerate(pollutants):
