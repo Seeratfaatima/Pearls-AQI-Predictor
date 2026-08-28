@@ -149,14 +149,40 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 @st.cache_resource
 def load_trained_models():
     models = {}
-    for day in ["day1", "day2", "day3"]:
-        m_path = os.path.join(MODELS_DIR, f"model_{day}.joblib")
-        if os.path.exists(m_path):
-            models[day] = joblib.load(m_path)
-    
     cols_path = os.path.join(MODELS_DIR, "feature_cols.joblib")
-    feature_cols = joblib.load(cols_path) if os.path.exists(cols_path) else None
-    return models, feature_cols
+    
+    # 1. Try local models folder
+    if os.path.exists(cols_path):
+        for day in ["day1", "day2", "day3"]:
+            m_path = os.path.join(MODELS_DIR, f"model_{day}.joblib")
+            if os.path.exists(m_path):
+                models[day] = joblib.load(m_path)
+        feature_cols = joblib.load(cols_path)
+        if len(models) == 3 and feature_cols is not None:
+            return models, feature_cols
+
+    # 2. Hopsworks Model Registry download fallback (for Streamlit Cloud deployments)
+    try:
+        from utils import get_hopsworks_project
+        project = get_hopsworks_project()
+        if project:
+            mr = project.get_model_registry()
+            model_meta = mr.get_model(name="aqi_predictor_model")
+            download_dir = model_meta.download()
+            
+            for day in ["day1", "day2", "day3"]:
+                m_path = os.path.join(download_dir, f"model_{day}.joblib")
+                if os.path.exists(m_path):
+                    models[day] = joblib.load(m_path)
+                    
+            c_path = os.path.join(download_dir, "feature_cols.joblib")
+            if os.path.exists(c_path):
+                feature_cols = joblib.load(c_path)
+                return models, feature_cols
+    except Exception as e:
+        print(f"[Hopsworks Model Registry Read Note]: {e}")
+
+    return models, None
 
 @st.cache_data(ttl=1800)
 def load_latest_data():
