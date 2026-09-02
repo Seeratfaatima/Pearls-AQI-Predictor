@@ -40,12 +40,12 @@ After evaluating multiple weather and environmental data providers (OpenWeatherM
 
 ## 4. Feature Engineering
 
-To capture diurnal periodicity, atmospheric trends, and historical pollution momentum, 70 engineered features were constructed in [`utils.py`](file:///Users/seeratfatima/Documents/aqi_predictor/utils.py):
+To capture diurnal periodicity, atmospheric trends, and historical pollution momentum, 71 engineered features were constructed in [`utils.py`](file:///Users/seeratfatima/Documents/aqi_predictor/utils.py):
 
 * **Cyclic Temporal Encodings**: `hour_sin`, `hour_cos`, `month_sin`, `month_cos` (using $\sin(2\pi \cdot t / T)$ and $\cos(2\pi \cdot t / T)$ transformations).
 * **Multi-Window Rolling Statistics**: Rolling means and standard deviations across 2, 3, 6, 12, 24, 48, and 72-hour windows for $\text{PM}_{2.5}$ and AQI.
 * **Multi-Lag Variables**: Lag values at $1, 2, 3, 4, 5, 6, 12, 18, 24, 36, 48,$ and $72$ hours prior.
-* **Environmental Delta Rates**: First-order differentials ($\Delta$) for temperature, humidity, wind speed, and $\text{PM}_{2.5}$.
+* **Environmental Delta Rates**: First-order differentials ($\Delta$) for temperature, humidity, surface pressure, wind speed, and $\text{PM}_{2.5}$.
 * **Multi-Horizon Targets**: 24-hour forward target averages for Day 1 (`aqi_day1`), Day 2 (`aqi_day2`), and Day 3 (`aqi_day3`).
 
 ---
@@ -67,15 +67,15 @@ Multiple model architectures were evaluated on held-out test datasets ($80/20$ t
 | :--- | :--- | :---: | :---: | :---: | :---: |
 | **Day 1 (24h Forecast)** | Naive Persistence Baseline | 24.07 | 31.04 | 0.4980 | Baseline |
 | | 24h Mean Baseline | 17.48 | 23.41 | 0.7145 | -27.3% |
-| | **Random Forest AI** | **7.40** | **10.35** | **0.9442** | **🏆 69.3% Error Reduction** |
+| | **Random Forest AI** | **6.87** | **9.49** | **0.9520** | **🏆 71.5% Error Reduction** |
 | | | | | | |
 | **Day 2 (48h Forecast)** | Naive Persistence Baseline | 31.21 | 40.52 | 0.1511 | Baseline |
 | | 24h Mean Baseline | 24.30 | 32.65 | 0.4487 | -22.1% |
-| | **Random Forest AI** | **5.71** | **8.51** | **0.9626** | **🏆 81.7% Error Reduction** |
+| | **Random Forest AI** | **5.34** | **7.55** | **0.9700** | **🏆 82.9% Error Reduction** |
 | | | | | | |
 | **Day 3 (72h Forecast)** | Naive Persistence Baseline | 34.08 | 43.94 | -0.0307 | Baseline |
 | | 24h Mean Baseline | 27.42 | 35.91 | 0.3115 | -19.5% |
-| | **Random Forest AI** | **4.25** | **6.33** | **0.9786** | **🏆 87.5% Error Reduction** |
+| | **Random Forest AI** | **4.36** | **6.50** | **0.9781** | **🏆 87.2% Error Reduction** |
 
 ### Rationale for Selecting Random Forest Regressor:
 * **Non-Linear Interactions**: Superior ability to model complex non-linear interactions between weather features (surface pressure drops + high humidity) and particulate accumulation.
@@ -89,9 +89,9 @@ Multiple model architectures were evaluated on held-out test datasets ($80/20$ t
 
 During the development and deployment journey, several critical technical blockers were encountered and resolved:
 
-### Blocker 1: Hopsworks Feature Group Version Mismatch (`v3` vs `v4`)
-* **Issue**: The feature pipeline ([`feature_pipeline.py`](file:///Users/seeratfatima/Documents/aqi_predictor/feature_pipeline.py)) pushed engineered data to Hopsworks Feature Group `version=4`, but the training pipeline ([`training_pipeline.py`](file:///Users/seeratfatima/Documents/aqi_predictor/training_pipeline.py)) attempted to query `version=3`, causing pipeline crashes in CI/CD.
-* **Resolution**: Updated `training_pipeline.py` to query `version=4` and added an automated fallback mechanism to run `feature_pipeline.py` locally on-the-fly if remote feature group reads fail.
+### Blocker 1: Hopsworks Feature Group Version Mismatch & Schema Incompatibility (`v4` vs `v5`)
+* **Issue**: The feature pipeline ([`feature_pipeline.py`](file:///Users/seeratfatima/Documents/aqi_predictor/feature_pipeline.py)) pushed 71 features (including `pressure`), but Hopsworks Feature Group `v4` was registered with only 70 features (without `pressure`), causing immutable schema mismatch errors during insertion.
+* **Resolution**: Upgraded Hopsworks Feature Group to `version=5` and implemented a chunked REST API ingestion engine in [`feature_pipeline.py`](file:///Users/seeratfatima/Documents/aqi_predictor/feature_pipeline.py). This bypasses Hopsworks Cloud direct HDFS socket port 8020 disconnects (`RPC listener disconnected`) and streams features reliably to Hopsworks Feature Store.
 
 ### Blocker 2: Ingestion Timeout in GitHub Actions (`wait_for_job=True`)
 * **Issue**: The GitHub Actions runner hung for 9+ minutes while polling Hopsworks cluster jobs due to `write_options={"wait_for_job": True}`.
@@ -99,7 +99,7 @@ During the development and deployment journey, several critical technical blocke
 
 ### Blocker 3: Missing Local Model Artifacts in Streamlit Cloud
 * **Issue**: Model binary files (`models/*.joblib`) were excluded from git via `.gitignore`. When deployed to Streamlit Cloud, the app crashed with `Trained models not found in models/`.
-* **Resolution**: Updated [`app.py`](file:///Users/seeratfatima/Documents/aqi_predictor/app.py) with an automatic Hopsworks Model Registry download fallback (`mr.get_model("aqi_predictor_model").download()`), allowing the app to dynamically fetch the latest model bundle at runtime.
+* **Resolution**: Updated [`app.py`](file:///Users/seeratfatima/Documents/aqi_predictor/app.py) to dynamically query Hopsworks Model Registry for the highest registered version (`model_meta = max(mr.get_models("aqi_predictor_model"), key=lambda x: int(x.version))`), allowing the app to dynamically download Model Version 39 at runtime.
 
 ### Blocker 4: UTC Server Timezone Offset
 * **Issue**: Streamlit Cloud servers run in UTC timezone, causing the app header to display `Updated: 06:36 PKT` when local Pakistan time was `11:36 AM PKT`.

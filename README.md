@@ -10,8 +10,8 @@ An end-to-end production MLOps pipeline and interactive Streamlit web dashboard 
 | Slide Requirement | Implementation Status | Location / Details |
 | :--- | :---: | :--- |
 | **1. Feature Pipeline** | ✅ Complete | [`feature_pipeline.py`](file:///Users/seeratfatima/Documents/aqi_predictor/feature_pipeline.py) & [`utils.py`](file:///Users/seeratfatima/Documents/aqi_predictor/utils.py) — Fetches Open-Meteo Weather & Air Quality API data (synced with `Asia/Karachi` local time), engineers cyclical time features, multi-window rolling averages, lag variables, and multi-day target averages. |
-| **2. Feature Store Integration** | ✅ Complete | Hopsworks Feature Store (`aqi_features` FG **v4** & `aqi_feature_view` **v2**) with full automated feature schema synchronization. |
-| **3. Historical Backfill** | ✅ Complete | Backfilled 10,000+ hourly observations spanning 2024 to present. |
+| **2. Feature Store Integration** | ✅ Complete | Hopsworks Feature Store (`aqi_features` FG **v5** & Model Registry `aqi_predictor_model`) with REST API dataset chunked ingestion and automated schema sync. |
+| **3. Historical Backfill** | ✅ Complete | Backfilled 19,000+ hourly observations spanning 2024 to present. |
 | **4. Training Pipeline** | ✅ Complete | [`training_pipeline.py`](file:///Users/seeratfatima/Documents/aqi_predictor/training_pipeline.py) — Trains Random Forest multi-horizon models (Day 1, Day 2, Day 3), evaluates MAE, RMSE, R², and registers model bundles in Hopsworks Model Registry. |
 | **5. CI/CD Automation** | ✅ Complete | GitHub Actions workflows run **Hourly Feature Pipeline** ([`hourly_feature_pipeline.yml`](file:///Users/seeratfatima/Documents/aqi_predictor/.github/workflows/hourly_feature_pipeline.yml)) and **Daily Training Pipeline** ([`daily_training_pipeline.yml`](file:///Users/seeratfatima/Documents/aqi_predictor/.github/workflows/daily_training_pipeline.yml)). |
 | **6. Interactive Dashboard** | ✅ Complete | [`app.py`](file:///Users/seeratfatima/Documents/aqi_predictor/app.py) — Built with Streamlit, Plotly, custom CSS cards, live pollutant telemetry, **live atmospheric weather telemetry (Temperature, Humidity, Pressure, Wind)**, and 3-day forecast path. |
@@ -33,14 +33,14 @@ An end-to-end production MLOps pipeline and interactive Streamlit web dashboard 
 ┌───────────────────────┐        ┌───────────────────────────┐
 │ GitHub Actions Cron   ├───────►│    feature_pipeline.py    │
 │ (Hourly & Daily Jobs) │        │ (Feature Engineering &    │
-└───────────────────────┘        │  Rolling/Lag Computation) │
+└───────────────────────┘        │  REST Chunked Ingestion)  │
                                  └─────────────┬─────────────┘
                                                │
                                                ▼
                                  ┌───────────────────────────┐
                                  │  Hopsworks Feature Store  │
-                                 │ (aqi_features FG v4 /     │
-                                 │  aqi_feature_view v2)     │
+                                 │ (aqi_features FG v5 /     │
+                                 │  Model Registry v39)      │
                                  └─────────────┬─────────────┘
                                                │
                                                ▼
@@ -67,15 +67,15 @@ Our multi-output Random Forest AI model significantly beats standard baseline mo
 | :--- | :--- | :---: | :---: | :---: | :---: |
 | **Day 1 (24h Forecast)** | Naive Baseline | 24.07 | 31.04 | 0.4980 | Baseline |
 | | 24h Mean Baseline | 17.48 | 23.41 | 0.7145 | -27.3% |
-| | **Random Forest AI** | **7.40** | **10.35** | **0.9442** | **🏆 69.3% Error Reduction** |
+| | **Random Forest AI** | **6.87** | **9.49** | **0.9520** | **🏆 71.5% Error Reduction** |
 | | | | | | |
 | **Day 2 (48h Forecast)** | Naive Baseline | 31.21 | 40.52 | 0.1511 | Baseline |
 | | 24h Mean Baseline | 24.30 | 32.65 | 0.4487 | -22.1% |
-| | **Random Forest AI** | **5.71** | **8.51** | **0.9626** | **🏆 81.7% Error Reduction** |
+| | **Random Forest AI** | **5.34** | **7.55** | **0.9700** | **🏆 82.9% Error Reduction** |
 | | | | | | |
 | **Day 3 (72h Forecast)** | Naive Baseline | 34.08 | 43.94 | -0.0307 | Baseline |
 | | 24h Mean Baseline | 27.42 | 35.91 | 0.3115 | -19.5% |
-| | **Random Forest AI** | **4.25** | **6.33** | **0.9786** | **🏆 87.5% Error Reduction** |
+| | **Random Forest AI** | **4.36** | **6.50** | **0.9781** | **🏆 87.2% Error Reduction** |
 
 ---
 
