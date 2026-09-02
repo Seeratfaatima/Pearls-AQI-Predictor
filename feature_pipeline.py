@@ -37,14 +37,47 @@ def run_feature_pipeline(start_date="2024-07-01", end_date=None):
             fs = project.get_feature_store()
             fg = fs.get_or_create_feature_group(
                 name="aqi_features",
-                version=4,
-                description="Historical AQI features with engineered rolling variables",
+                version=5,
+                description="Historical AQI features with engineered rolling variables and pressure",
                 primary_key=["time"],
                 event_time="time",
                 online_enabled=False
             )
-            fg.insert(clean_df, write_options={"wait_for_job": False})
-            print("[Feature Pipeline] Successfully inserted features into Hopsworks Feature Group version 4!")
+            # Use REST ingestion engine to bypass external HDFS socket restrictions
+            try:
+                import math
+                from hsfs import engine, util
+                from hsfs.core import dataset_api
+                eng = engine._get_instance()
+                app_options = eng._get_app_options({"wait_for_job": False})
+                ingestion_job = eng._feature_group_api._ingestion(fg, app_options)
+                
+                ds_api = dataset_api.DatasetApi()
+                df_parquet = clean_df.to_parquet(index=False)
+                parquet_length = len(df_parquet)
+                num_chunks = math.ceil(parquet_length / ds_api.DEFAULT_FLOW_CHUNK_SIZE)
+                fg_name = util._feature_group_name(fg)
+                base_params = ds_api._get_flow_base_params(fg_name, num_chunks, parquet_length, ds_api.DEFAULT_FLOW_CHUNK_SIZE)
+                
+                chunk_number = 1
+                for i in range(0, parquet_length, ds_api.DEFAULT_FLOW_CHUNK_SIZE):
+                    query_params = base_params.copy()
+                    query_params["flowCurrentChunkSize"] = len(df_parquet[i : i + ds_api.DEFAULT_FLOW_CHUNK_SIZE])
+                    query_params["flowChunkNumber"] = chunk_number
+                    ds_api._upload_request(
+                        query_params,
+                        ingestion_job.data_path,
+                        fg_name,
+                        df_parquet[i : i + ds_api.DEFAULT_FLOW_CHUNK_SIZE]
+                    )
+                    chunk_number += 1
+                
+                ingestion_job.job.run(await_termination=False)
+                print("[Feature Pipeline] Successfully launched Hopsworks ingestion job for Feature Group v5!")
+            except Exception as ing_err:
+                print(f"[Feature Pipeline] Direct REST ingestion fallback attempt: {ing_err}")
+                fg.insert(clean_df, write_options={"wait_for_job": False})
+                print("[Feature Pipeline] Pushed features to Hopsworks Feature Group version 5!")
         except Exception as e:
             print(f"[Feature Pipeline] Warning: Could not push to Hopsworks Feature Store: {e}")
 

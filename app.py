@@ -502,7 +502,7 @@ with tab_telemetry:
     with t_col2:
         st.markdown("#### Architecture Information")
         st.write("- **Model**: Random Forest Multi-Output Regressor (200 Trees)")
-        st.write("- **Feature Store**: Hopsworks Feature Group `aqi_features` (v4)")
+        st.write("- **Feature Store**: Hopsworks Feature Group `aqi_features` (v5)")
         st.write("- **Data Source**: Open-Meteo Weather & Air Quality Historical API")
         st.write("- **CI/CD Automation**: GitHub Actions Hourly & Daily Cron")
 

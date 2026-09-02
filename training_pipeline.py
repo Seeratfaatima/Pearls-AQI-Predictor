@@ -25,32 +25,17 @@ def load_data():
     if project:
         try:
             fs = project.get_feature_store()
-            fg = fs.get_feature_group(name="aqi_features", version=4)
-            query = fg.select_all()
+            fg = fs.get_feature_group(name="aqi_features", version=5)
             try:
-                fv = fs.get_feature_view(name="aqi_feature_view", version=2)
-            except Exception:
-                fv = fs.create_feature_view(
-                    name="aqi_feature_view",
-                    version=2,
-                    description="Feature View for AQI 3-Day Forecast models",
-                    query=query
-                )
-            td_version = 1
-            try:
-                fv.get_train_test_split(training_dataset_version=td_version)
-            except Exception:
-                try:
-                    fv.train_test_split(test_size=0.2, description="AQI training dataset split")
-                except Exception as ex:
-                    print(f"[Training Pipeline] Note: training dataset split handling: {ex}")
-            
-            df = fv.get_batch_data()
-            df = df.sort_values("time").reset_index(drop=True)
-            print(f"[Training Pipeline] Successfully read {len(df)} rows from Hopsworks Feature View ('aqi_feature_view' v2).")
-            return df, fv, td_version
+                df = fg.read()
+                if df is not None and not df.empty:
+                    df = df.sort_values("time").reset_index(drop=True)
+                    print(f"[Training Pipeline] Successfully read {len(df)} rows from Hopsworks Feature Group ('aqi_features' v5).")
+                    return df, None, 1
+            except Exception as read_err:
+                print(f"[Training Pipeline] Hopsworks FG read fallback: {read_err}")
         except Exception as e:
-            print(f"[Training Pipeline] Hopsworks read fallback: {e}")
+            print(f"[Training Pipeline] Hopsworks store connection note: {e}")
 
     if os.path.exists(DATA_PATH):
         df = pd.read_parquet(DATA_PATH)
