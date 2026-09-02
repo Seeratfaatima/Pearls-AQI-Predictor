@@ -166,8 +166,8 @@ def load_trained_models():
         from utils import get_hopsworks_project
         project = get_hopsworks_project()
         if project:
-            mr = project.get_model_registry()
-            model_meta = mr.get_model(name="aqi_predictor_model")
+            models_list = mr.get_models(name="aqi_predictor_model")
+            model_meta = max(models_list, key=lambda x: int(x.version)) if models_list else mr.get_model(name="aqi_predictor_model")
             download_dir = model_meta.download()
             
             for day in ["day1", "day2", "day3"]:
